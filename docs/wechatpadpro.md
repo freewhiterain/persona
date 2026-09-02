@@ -1,113 +1,98 @@
 # WeChatPadPro connector
 
 Self-hosted WeChat iPad-protocol server → `persona` via
-`persona/connectors/wechatpadpro/`. The runner / pipeline / queue are
-untouched; this is pure transport.
+`persona/connectors/wechatpadpro/`. Runner / pipeline / queue are untouched;
+this is pure transport.
 
 > Personal-account automation violates WeChat's ToS and carries a real ban
 > risk. Use a secondary account.
 
 ## About WeChatPadPro
 
-Repo: <https://github.com/WeChatPadPro/WeChatPadPro> (this family gets DMCA'd
-and moves — verify it's live and read *its* current docs). Closed-source
-binary distribution.
+Repo: <https://github.com/WeChatPadPro/WeChatPadPro> (closed-source binary;
+this family gets DMCA'd and moves — verify it's live). Verified here against
+**v860**.
 
-- **Needs MySQL 8 + Redis 6.** Its `deploy/docker-compose.yml` bundles both +
-  the service — the easy path. A binary release (`wechatpadpro.exe` /
-  `./wechatpadpro`, edit `config.json`) exists too, but then you run MySQL +
+- Needs **MySQL 8 + Redis 6**. `deploy/docker-compose.yml` bundles both + the
+  service. A binary release also exists (`config.json`), then you run MySQL +
   Redis yourself.
-- Ports: **1238** main API, 8080 secondary, **8848** admin.
-- `deploy/.env`: set `ADMIN_KEY` (default `changeme`), MySQL/Redis creds.
-- Login: `POST /api/login/qr/newx` → scan QR. First login drops once within
-  24h, then re-scan for ~3 months.
-- Per-account key: `GET http://<host>:8848/login/GenAuthKey2?key=<ADMIN_KEY>&count=1&days=365`
-  → that string is your `WECHATPADPRO_TOKEN`; API calls take it as `?key=<token>`.
+- Container listens on **1238** (main API + Swagger UI) and 8080.
+- `deploy/.env`: set `ADMIN_KEY`.
+- **Windows note:** ports 1238 and 3306 fall in the WinNAT/Hyper-V reserved
+  range (`netsh interface ipv4 show excludedportrange protocol=tcp`), so
+  `docker compose up` fails to bind them. Remap the *host* side in
+  `deploy/docker-compose.yml`, e.g. `"12380:1238"`, drop the `3306` / `6379`
+  host mappings (containers reach each other over the compose network). Then
+  `base_url = "http://localhost:12380"`.
 
 ## Deploy (Docker)
 
 ```bash
 git clone https://github.com/WeChatPadPro/WeChatPadPro.git
 cd WeChatPadPro/deploy
-#   edit .env: ADMIN_KEY=<something>, (optionally MySQL/Redis passwords)
+#   edit .env: ADMIN_KEY=<something>
+#   (Windows) edit docker-compose.yml host ports as above
 docker compose up -d
-docker compose ps          # wechatpadpro + mysql + redis all healthy
+docker compose ps          # wechatpadpro + mysql + redis healthy
 ```
 
-Then open `http://localhost:1238` for the QR / API console, log in the
-secondary account, and `GenAuthKey2` for the token.
+Open `http://localhost:<port>/docs` → Swagger UI. Full spec at
+`/docs/swagger.json`.
 
-`docs/docker-compose.example.yml` adds a `persona` service next to it.
+### Log in the account
+
+1. `POST /admin/GenAuthKey1?key=<ADMIN_KEY>` (body `{"Count":1,"Days":365}`) →
+   a per-account **authKey**. That's your `WECHATPADPRO_TOKEN`.
+2. `POST /login/GetLoginQrCodeNewX?key=<authKey>` → QR; scan with the secondary
+   phone. `GET /login/GetLoginStatus?key=<authKey>` to confirm. First login
+   drops once within 24h — scan again.
+3. Note the account's **wxid** (in the login status payload).
 
 ## Configure persona
-
-Point WeChatPadPro's webhook at persona — edit its `webhook_config.json`
-(or `POST /v1/webhook/Config`):
-
-```json
-{
-  "enabled": true,
-  "url": "http://<persona-host>:9101/webhook",
-  "events": ["message"],
-  "retry_count": 3,
-  "retry_interval": 5,
-  "secret_key": "<pick-a-secret>"
-}
-```
 
 `.env`:
 
 ```
-WECHATPADPRO_TOKEN=<GenAuthKey2 output>
+WECHATPADPRO_TOKEN=<authKey>
 ```
 
 `config.toml` `[wechatpadpro]`:
 
 ```toml
-enabled = true
-base_url = "http://localhost:1238"      # http://wechatpadpro:1238 if persona is in the same compose
+enabled   = true
+base_url  = "http://localhost:12380"   # your remapped port; or http://wechatpadpro:1238 in-compose
 self_wxid = "wxid_your_secondary"
-webhook_secret = "<the same secret>"
 character = "lin"
+push_mode = "ws"                        # GET /ws/GetSyncMsg?key= — simplest
+# push_mode = "webhook"                 # alternative; also set webhook_secret + register the URL
 ```
 
 `uv sync --extra wechat`, `uv run persona init` once, then `uv run persona wechat`.
 
-## Confirmed contract (from the official webhook reference client)
+## Confirmed API (v860 `/docs/swagger.json`)
 
-Inbound webhook — **one flat camelCase JSON object per POST**:
-
-```json
-{ "msgType": 1, "fromUser": "wxid_x", "toUser": "wxid_y", "content": "...", "msgId": "...", "nickName": "..." }
-```
-
-- signature: headers `X-Webhook-Timestamp` + `X-Webhook-Signature`,
-  `HMAC_SHA256(secret_key, timestamp_str + raw_body)` as lowercase hex
-- msg types: `1` text · `3` image · `34` voice · `43` video · `47` sticker ·
-  `49` app/link/file · `10000` system
-
-`adapter.to_std` reads these (and still tolerates the PascalCase /
-`{"string": …}` shapes other distros use). Non-text kinds → `None` (skeleton).
-
-## Still to confirm from the running Swagger (`/swagger` or `/doc`)
-
-Only the **send** side. `POST /api/v1/message/sendFile` is documented with
-`{"toUserName": ...}`; the text endpoint is a guess modelled on it:
-
-| where | current guess |
+| purpose | call |
 | --- | --- |
-| `config send_text_path` | `POST /api/v1/message/sendText` |
-| `client.py::send_text` payload | `{"toUserName": <wxid>, "content": <text>, "atWxIDList": []}` |
+| auth | every call takes `?key=<authKey>` (query) |
+| send text | `POST /message/SendTextMessage` — body `{"MsgItem":[{"ToUserName":"<wxid>","TextContent":"<text>","MsgType":1,"AtWxIDList":[]}]}` |
+| receive (ws) | `GET /ws/GetSyncMsg?key=<authKey>` — streams message frames |
+| receive (poll) | `POST /message/HttpSyncMsg` — body `{"Count":0}` |
+| receive (webhook) | `POST /webhook/Config` — `{Enabled, URL, MessageTypes, Secret, IncludeSelfMessage, RetryCount, Timeout}` |
+| voice / image / video in | `POST /message/GetMsgVoice` · `/message/GetMsgBigImg` · `/message/GetMsgVideo` |
 
-Fix those two lines once you see the real spec; everything else is wired.
+Message-type numbers (from the webhook reference client): `1` text · `3`
+image · `34` voice · `43` video · `47` sticker · `49` app/link/file ·
+`10000` system.
 
-## Identity mapping
+Webhook body shape (reference client): flat camelCase, one object per POST —
+`{"msgType":1,"fromUser":"...","toUser":"...","content":"...","msgId":"...","nickName":"..."}`;
+signature headers `X-Webhook-Timestamp` + `X-Webhook-Signature` =
+`HMAC_SHA256(secret, timestamp + raw_body)` hex.
 
-- inbound user → `UserStore.get_or_create_external("wechat", fromUser, nickName)`
-  → row `name = "wechat:<wxid>"`, `meta.external_id = <wxid>`
-- outbound → `deliver()` reads `meta.external_id` to address the send
-- character → the `is_character` row for `[wechatpadpro].character`; its id is
-  `outbound_from_id`, so this connector only sends that character's messages
+`adapter.to_std` reads camelCase first and still tolerates PascalCase /
+`{"string": …}` shapes. **The exact WS-frame field casing is unverified**
+(needs a logged-in account) — the adapter's fallbacks should cover it; adjust
+`adapter._get` keys if a real frame differs.
 
 ## Not done (skeleton)
 

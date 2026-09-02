@@ -43,22 +43,22 @@ dislike_analyze_bonus = -5   # dislike drift applied on every post-analyze pass
 blacklist_dislike = 100
 
 # Self-hosted WeChatPadPro connector.  `persona wechat` uses this.
-# Defaults target github.com/WeChatPadPro/WeChatPadPro (webhook delivery).
-# Confirm send_* paths from your build's Swagger — see docs/wechatpadpro.md.
+# Paths confirmed against WeChatPadPro v860 /docs/swagger.json.
+# See docs/wechatpadpro.md for deploy + login.
 [wechatpadpro]
 enabled = false
 character = "lin"                       # which character card this account plays
-base_url = "http://localhost:1238"
-# token = "..."                         # per-account auth key; prefer WECHATPADPRO_TOKEN in .env
+base_url = "http://localhost:1238"     # your host port (Windows: remap, see docs)
+# token = "..."                         # per-account authKey; prefer WECHATPADPRO_TOKEN in .env
 self_wxid = ""                          # logged-in account's wxid (drops own messages)
-push_mode = "webhook"                   # "webhook" (WeChatPadPro) | "ws" (other distros)
+push_mode = "ws"                        # "ws" (GET /ws/GetSyncMsg) | "webhook"
+ws_path = "/ws/GetSyncMsg"
 webhook_host = "0.0.0.0"
 webhook_port = 9101
-webhook_path = "/wechat/callback"
-webhook_secret = ""                     # HMAC-SHA256 secret from webhook_config.json
-ws_path = "/ws/GetSyncMsg"              # only when push_mode = "ws"
-send_text_path = "/api/v1/message/sendText"
-send_image_path = "/api/v1/message/sendImage"
-send_voice_path = "/api/v1/message/sendVoice"
+webhook_path = "/webhook"
+webhook_secret = ""                     # webhook_config "secret_key" (webhook mode only)
+send_text_path = "/message/SendTextMessage"
+send_image_path = "/message/SendImageMessage"
+send_voice_path = "/message/SendVoice"
 reconnect_seconds = 3.0
 dedup_window = 512

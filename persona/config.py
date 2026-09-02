@@ -83,22 +83,23 @@ class WeChatPadProConfig(BaseModel):
 
     enabled: bool = False
     character: str = "lin"            # which character card this WeChat account plays
-    base_url: str = "http://localhost:1238"
-    token: str = ""                  # per-account auth key; or set WECHATPADPRO_TOKEN in .env
+    base_url: str = "http://localhost:1238"   # no /api prefix; message endpoints are /message/*
+    token: str = ""                  # per-account key (GenAuthKey2); or WECHATPADPRO_TOKEN in .env
     self_wxid: str = ""             # logged-in account's wxid (to drop own messages)
 
-    push_mode: str = "webhook"      # "webhook" (WeChatPadPro) | "ws" (other distros)
+    # "ws" -> GET /ws/GetSyncMsg?key=  (simplest, no webhook setup)
+    # "webhook" -> WeChatPadPro POSTs to webhook_host:webhook_port+webhook_path
+    push_mode: str = "ws"
+    ws_path: str = "/ws/GetSyncMsg"
     webhook_host: str = "0.0.0.0"
     webhook_port: int = 9101
-    webhook_path: str = "/webhook"   # WeChatPadPro webhook_config.json -> url path
-    webhook_secret: str = ""        # webhook_config.json "secret_key" ("" = skip signature check)
-    ws_path: str = "/ws/GetSyncMsg"  # only for push_mode = "ws"
+    webhook_path: str = "/webhook"
+    webhook_secret: str = ""        # webhook_config "secret_key" ("" = skip signature check)
 
-    # send endpoints — sendFile is confirmed from the README; sendText path +
-    # payload still TODO confirm from the running server's Swagger (/swagger or /doc)
-    send_text_path: str = "/api/v1/message/sendText"
-    send_image_path: str = "/api/v1/message/sendImage"
-    send_voice_path: str = "/api/v1/message/sendVoice"
+    # confirmed from the running server's /docs/swagger.json
+    send_text_path: str = "/message/SendTextMessage"
+    send_image_path: str = "/message/SendImageMessage"
+    send_voice_path: str = "/message/SendVoice"
 
     reconnect_seconds: float = 3.0
     dedup_window: int = 512          # remember this many recent msg ids
