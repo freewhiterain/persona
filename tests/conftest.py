@@ -43,7 +43,7 @@ def db():
 @pytest.fixture
 def seeded(db):
     """Return (character_row, user_row) with 'lin' seeded from characters/lin."""
-    from persona.persona.cards import seed_character
+    from persona.chat.cards import seed_character
     from persona.store.users import UserStore
 
     seed_character("lin")

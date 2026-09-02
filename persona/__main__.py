@@ -19,7 +19,7 @@ logger = get_logger(__name__)
 
 
 def _cmd_init(args: argparse.Namespace) -> int:
-    from persona.persona.cards import seed_character
+    from persona.chat.cards import seed_character
     from persona.store.db import get_db
 
     get_db().init_schema()
@@ -34,7 +34,7 @@ def _cmd_init(args: argparse.Namespace) -> int:
 
 async def _chat(character_alias: str, user_name: str) -> None:
     from persona.connectors.terminal import TerminalConnector
-    from persona.persona.cards import seed_character
+    from persona.chat.cards import seed_character
     from persona.runner.daemon import run_daemon
     from persona.store.db import get_db
     from persona.store.users import UserStore
@@ -70,7 +70,7 @@ def _cmd_chat(args: argparse.Namespace) -> int:
 
 
 def _cmd_run(args: argparse.Namespace) -> int:
-    from persona.persona.cards import seed_character
+    from persona.chat.cards import seed_character
     from persona.runner.daemon import run_daemon
     from persona.store.db import get_db
     from persona.store.users import UserStore

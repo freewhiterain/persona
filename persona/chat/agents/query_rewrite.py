@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from persona.persona.agents.base import PersonaLLMAgent
-from persona.persona.prompts.tasks import SCHEMA_QUERY_REWRITE, TASK_QUERY_REWRITE
+from persona.chat.agents.base import PersonaLLMAgent
+from persona.chat.prompts.tasks import SCHEMA_QUERY_REWRITE, TASK_QUERY_REWRITE
 
 
 class QueryRewriteAgent(PersonaLLMAgent):

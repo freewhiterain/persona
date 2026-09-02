@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from persona.core.llm_client import extract_json
-from persona.persona.agents.base import PersonaLLMAgent
-from persona.persona.agents.respond import normalize_segments
-from persona.persona.prompts.tasks import TASK_REFINE
+from persona.chat.agents.base import PersonaLLMAgent
+from persona.chat.agents.respond import normalize_segments
+from persona.chat.prompts.tasks import TASK_REFINE
 
 
 class RefineAgent(PersonaLLMAgent):

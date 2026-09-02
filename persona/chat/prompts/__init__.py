@@ -6,7 +6,7 @@
   nothing is off-limits" framing, kept for parity / opt-in.
 
 Task-level instructions (query rewrite, respond, summarise ...) live in
-:mod:`persona.persona.prompts.tasks` and do not change between presets.
+:mod:`persona.chat.prompts.tasks` and do not change between presets.
 """
 
 from __future__ import annotations

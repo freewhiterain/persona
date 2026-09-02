@@ -16,10 +16,10 @@ from typing import Any, Iterator
 from persona.core.agent import AgentStatus, BaseAgent
 from persona.logging_conf import get_logger
 from persona.memory.retrieval import recall
-from persona.persona.agents.post_analyze import PostAnalyzeAgent
-from persona.persona.agents.query_rewrite import QueryRewriteAgent
-from persona.persona.agents.refine import RefineAgent
-from persona.persona.agents.respond import ProactiveRespondAgent, RespondAgent
+from persona.chat.agents.post_analyze import PostAnalyzeAgent
+from persona.chat.agents.query_rewrite import QueryRewriteAgent
+from persona.chat.agents.refine import RefineAgent
+from persona.chat.agents.respond import ProactiveRespondAgent, RespondAgent
 
 logger = get_logger(__name__)
 

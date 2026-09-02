@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from persona.config import get_settings
 from persona.memory.summarize import ingest_kv_lines
-from persona.persona.agents.base import PersonaLLMAgent, _clamp
-from persona.persona.prompts.tasks import SCHEMA_POST_ANALYZE, TASK_POST_ANALYZE
+from persona.chat.agents.base import PersonaLLMAgent, _clamp
+from persona.chat.prompts.tasks import SCHEMA_POST_ANALYZE, TASK_POST_ANALYZE
 from persona.store.memory import MemoryStore
 
 

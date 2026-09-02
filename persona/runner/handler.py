@@ -20,8 +20,8 @@ import time
 from persona.config import get_settings
 from persona.core.agent import AgentStatus
 from persona.logging_conf import get_logger
-from persona.persona.context import build_context
-from persona.persona.pipeline import ChatPipeline
+from persona.chat.context import build_context
+from persona.chat.pipeline import ChatPipeline
 from persona.store.conversations import ConversationStore
 from persona.store.locks import LockManager
 from persona.store.messages import MessageQueue

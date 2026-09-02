@@ -1,7 +1,7 @@
 """Context blocks for the user prompt.
 
 Each function takes the turn ``ctx`` dict (built by
-:mod:`persona.persona.context`) and returns a ``### heading`` section as a
+:mod:`persona.chat.context`) and returns a ``### heading`` section as a
 plain string — explicit f-strings, so a missing field is an obvious
 ``KeyError`` at the call site rather than a cryptic ``str.format`` crash.
 """

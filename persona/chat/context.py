@@ -9,7 +9,7 @@ import time
 from datetime import datetime
 from typing import Any
 
-from persona.persona.cards import character_view
+from persona.chat.cards import character_view
 from persona.store.users import UserStore
 
 _WEEK = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]

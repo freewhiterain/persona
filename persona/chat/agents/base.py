@@ -17,15 +17,15 @@ import time
 from typing import Any
 
 from persona.core.llm_agent import LLMAgent, render
-from persona.persona.context import parse_cn_time
-from persona.persona.prompts import get_system
-from persona.persona.prompts import blocks
+from persona.chat.context import parse_cn_time
+from persona.chat.prompts import get_system
+from persona.chat.prompts import blocks
 
 
 class PersonaLLMAgent(LLMAgent):
     #: task instruction template (uses {character_name} / {user_name} only)
     task_template: str = ""
-    #: ordered block keys from persona.persona.prompts.blocks
+    #: ordered block keys from persona.chat.prompts.blocks
     context_blocks: list[str] = []
 
     def _make_system(self) -> str:

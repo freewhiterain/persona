@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from persona.persona.agents.base import PersonaLLMAgent, apply_relation_delta, book_future
-from persona.persona.prompts.tasks import SCHEMA_RESPOND, TASK_PROACTIVE, TASK_RESPOND
+from persona.chat.agents.base import PersonaLLMAgent, apply_relation_delta, book_future
+from persona.chat.prompts.tasks import SCHEMA_RESPOND, TASK_PROACTIVE, TASK_RESPOND
 
 
 def normalize_segments(resp: dict[str, Any]) -> list[dict[str, str]]:

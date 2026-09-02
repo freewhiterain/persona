@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from persona.persona.context import build_context, parse_cn_time
-from persona.persona.pipeline import ChatPipeline
+from persona.chat.context import build_context, parse_cn_time
+from persona.chat.pipeline import ChatPipeline
 from persona.runner.handler import main_handler
 from persona.store.conversations import ConversationStore
 from persona.store.messages import MessageQueue
