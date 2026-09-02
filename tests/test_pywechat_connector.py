@@ -20,12 +20,19 @@ def test_config_section_loads(db):
     assert pw.whitelist == []
 
 
-def test_ensure_raises_helpful_error_when_pyweixin_missing(db):
+def test_ensure_behaviour(db):
+    """Without pyweixin -> a helpful RuntimeError; with it -> loads cleanly."""
     from persona.connectors.pywechat.connector import PyWeChatConnector
 
     c = PyWeChatConnector(character_id="cid")
-    with pytest.raises(RuntimeError, match="pyweixin"):
+    try:
+        import pyweixin  # noqa: F401
+    except Exception:
+        with pytest.raises(RuntimeError, match="pyweixin"):
+            c._ensure()
+    else:
         c._ensure()
+        assert c._Messages is not None
 
 
 def test_dedup_key_and_remember(db):
