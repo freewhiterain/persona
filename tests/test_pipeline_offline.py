@@ -84,3 +84,42 @@ def test_busy_status_holds_messages(seeded):
     held = q.db.query_one("SELECT status FROM messages WHERE direction='in' AND from_id=?", (me["id"],))
     assert held["status"] == "hold"
     assert q.db.query_all("SELECT 1 FROM messages WHERE direction='out'") == []
+
+
+def test_rollback_when_new_message_arrives_midrun(seeded, monkeypatch):
+    """Message 2 lands while message 1 is being answered -> the turn rolls back,
+    message 1 folds into history, and the next tick answers with both in context.
+    """
+    lin, me = seeded
+    q = MessageQueue()
+    m1 = q.add_inbound(from_id=me["id"], to_id=lin["id"], body="第一条")
+
+    # inject a second inbound partway through the pipeline (during recall)
+    import persona.chat.pipeline as pipe_mod
+
+    real_recall = pipe_mod.recall
+    state = {"injected": False}
+
+    def recall_then_inject(*args, **kwargs):
+        out = real_recall(*args, **kwargs)
+        if not state["injected"]:
+            state["injected"] = True
+            MessageQueue().add_inbound(from_id=me["id"], to_id=lin["id"], body="第二条")
+        return out
+
+    monkeypatch.setattr(pipe_mod, "recall", recall_then_inject)
+
+    # tick 1: sees the mid-run inbound -> rollback, no reply emitted
+    assert main_handler(lin["id"]) is True
+    assert q.get(m1["id"])["status"] == "handled"
+    assert q.db.query_all("SELECT 1 FROM messages WHERE direction='out'") == []
+    assert q.has_pending_inbound(me["id"], lin["id"]) is True  # 第二条 still queued
+
+    conv = ConversationStore().get_or_create_private(me["id"], lin["id"])
+    hist = [h["body"] for h in conv["info"]["chat_history"]]
+    assert "第一条" in hist  # folded into history
+
+    # tick 2: answers 第二条, now with 第一条 in context
+    assert main_handler(lin["id"]) is True
+    assert q.has_pending_inbound(me["id"], lin["id"]) is False
+    assert q.db.query_all("SELECT 1 FROM messages WHERE direction='out'")  # reply produced

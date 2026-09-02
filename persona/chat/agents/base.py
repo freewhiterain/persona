@@ -45,13 +45,19 @@ def _clamp(v: float, lo: int = 0, hi: int = 100) -> int:
     return int(max(lo, min(hi, v)))
 
 
+def _num(v: Any) -> float:
+    """Tolerant number parse: 3, '3', '+3', '  -2 ' -> float; anything else 0."""
+    try:
+        return float(str(v).strip().lstrip("+"))
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def apply_relation_delta(ctx: dict[str, Any], delta: Any) -> None:
     rel = ctx["relation"]["relationship"]
-    try:
-        dc = float((delta or {}).get("Closeness", 0) or 0)
-        dt = float((delta or {}).get("Trustness", 0) or 0)
-    except (TypeError, ValueError):
-        dc = dt = 0.0
+    d = delta if isinstance(delta, dict) else {}
+    dc = max(-10.0, min(10.0, _num(d.get("Closeness", 0))))
+    dt = max(-10.0, min(10.0, _num(d.get("Trustness", 0))))
     rel["closeness"] = _clamp(rel.get("closeness", 0) + dc)
     rel["trustness"] = _clamp(rel.get("trustness", 0) + dt)
 
@@ -62,8 +68,9 @@ def book_future(ctx: dict[str, Any], future_resp: Any) -> None:
     info = ctx["conversation"]["info"]
     fut = info.setdefault("future", {"timestamp": None, "action": None, "proactive_times": 0})
     times = fut.get("proactive_times", 0)
-    action = str((future_resp or {}).get("FutureResponseAction", "无")).strip()
-    when = parse_cn_time(str((future_resp or {}).get("FutureResponseTime", "无")))
+    fr = future_resp if isinstance(future_resp, dict) else {}
+    action = str(fr.get("FutureResponseAction", "无")).strip()
+    when = parse_cn_time(str(fr.get("FutureResponseTime", "无")))
 
     if action and action != "无" and when and when > int(time.time()):
         if random.random() < (0.25 ** (times + 1) + 0.05):
