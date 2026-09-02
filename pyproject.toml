@@ -16,6 +16,9 @@ dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
 ]
+wechat = [
+    "aiohttp>=3.9",
+]
 
 [project.scripts]
 persona = "persona.__main__:main"

@@ -52,3 +52,27 @@ class UserStore:
             (uid, int(is_character), name, display_name or name, dumps(meta or {}), now()),
         )
         return self.get(uid)  # type: ignore[return-value]
+
+    def get_or_create_external(
+        self, platform: str, external_id: str, display_name: str | None = None
+    ) -> dict[str, Any]:
+        """A user identified by an id on some transport (e.g. a WeChat wxid).
+
+        Stored as name ``"<platform>:<external_id>"`` with the raw id in meta so
+        connectors can look it up on the way back out.
+        """
+        name = f"{platform}:{external_id}"
+        existing = self.get_by_name(name)
+        if existing:
+            if display_name and display_name != existing["display_name"]:
+                self.db.execute(
+                    "UPDATE users SET display_name = ? WHERE id = ?", (display_name, existing["id"])
+                )
+                return self.get(existing["id"])  # type: ignore[return-value]
+            return existing
+        return self.upsert(
+            name=name,
+            display_name=display_name or external_id,
+            is_character=False,
+            meta={"platform": platform, "external_id": external_id},
+        )

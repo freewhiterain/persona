@@ -32,6 +32,7 @@ class EnvSettings(BaseSettings):
     persona_fake_llm: bool = False
     persona_log_level: str = "INFO"
     persona_db_path: str | None = None   # overrides config.toml db_path (tests / one-offs)
+    wechatpadpro_token: str | None = None  # overrides config.toml [wechatpadpro].token
 
     @property
     def emb_key(self) -> str:
@@ -69,6 +70,31 @@ class RelationsConfig(BaseModel):
     blacklist_dislike: int = 100
 
 
+class WeChatPadProConfig(BaseModel):
+    """Self-hosted WeChatPadPro (Docker) protocol server.  See
+    docs/wechatpadpro.md — the 4 fields you must confirm from its Swagger."""
+
+    enabled: bool = False
+    character: str = "lin"            # which character card this WeChat account plays
+    base_url: str = "http://localhost:8080"
+    token: str = ""                  # or set WECHATPADPRO_TOKEN in .env
+    self_wxid: str = ""             # logged-in account's wxid (to drop own messages)
+
+    push_mode: str = "ws"           # "ws" (long-poll sync) | "webhook" (HTTP callback)
+    ws_path: str = "/ws/GetSyncMsg"  # TODO confirm
+    webhook_host: str = "0.0.0.0"
+    webhook_port: int = 9101
+    webhook_path: str = "/wechat/callback"
+
+    # send endpoints (TODO confirm names against your build's Swagger)
+    send_text_path: str = "/message/SendTextMessage"
+    send_image_path: str = "/message/SendImageMessage"
+    send_voice_path: str = "/message/SendVoiceMessage"
+
+    reconnect_seconds: float = 3.0
+    dedup_window: int = 512          # remember this many recent msg ids
+
+
 class TomlConfig(BaseModel):
     db_path: str = "persona.db"
     prompt_preset: str = "roleplay"
@@ -79,6 +105,7 @@ class TomlConfig(BaseModel):
     models: ModelRoles = Field(default_factory=ModelRoles)
     runner: RunnerConfig = Field(default_factory=RunnerConfig)
     relations: RelationsConfig = Field(default_factory=RelationsConfig)
+    wechatpadpro: WeChatPadProConfig = Field(default_factory=WeChatPadProConfig)
 
 
 # --------------------------------------------------------------------------- #
@@ -107,6 +134,10 @@ class Settings(BaseModel):
     def effective_embedder(self) -> str:
         # offline mode can't reach an embeddings endpoint
         return "hash" if self.fake_llm else self.cfg.embedder
+
+    @property
+    def wechatpadpro_token(self) -> str:
+        return self.env.wechatpadpro_token or self.cfg.wechatpadpro.token
 
 
 def _find_project_root() -> Path:

@@ -22,6 +22,7 @@ class TerminalConnector(Connector):
         self.user_name = user_name
         self.character_id = character_id
         self.character_name = character_name
+        self.outbound_from_id = character_id
 
     async def run_inbound(self, *, eof_grace: float = 30.0) -> None:
         loop = asyncio.get_running_loop()

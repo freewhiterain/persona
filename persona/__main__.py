@@ -91,6 +91,48 @@ def _cmd_run(args: argparse.Namespace) -> int:
     return 0
 
 
+async def _wechat(character_alias: str) -> None:
+    from persona.chat.cards import seed_character
+    from persona.connectors.wechatpadpro import WeChatPadProConnector
+    from persona.runner.daemon import run_daemon
+    from persona.store.db import get_db
+    from persona.store.users import UserStore
+
+    s = get_settings()
+    if not s.cfg.wechatpadpro.enabled:
+        print("config.toml [wechatpadpro].enabled = false — nothing to do.")
+        print("See docs/wechatpadpro.md.")
+        return
+    if not s.wechatpadpro_token:
+        print("no WeChatPadPro token — set WECHATPADPRO_TOKEN in .env (or [wechatpadpro].token).")
+        return
+
+    get_db().init_schema()
+    seed_character(character_alias)
+    character = UserStore().get_by_name(character_alias)
+    conn = WeChatPadProConnector(character_id=character["id"])
+    tasks = [
+        asyncio.create_task(run_daemon(character["id"])),
+        asyncio.create_task(conn.run_inbound()),
+        asyncio.create_task(conn.run_outbound()),
+    ]
+    try:
+        await asyncio.gather(*tasks)
+    finally:
+        for t in tasks:
+            t.cancel()
+        await conn.client.close()
+
+
+def _cmd_wechat(args: argparse.Namespace) -> int:
+    character = args.character or get_settings().cfg.wechatpadpro.character
+    try:
+        asyncio.run(_wechat(character))
+    except KeyboardInterrupt:
+        print("\nstopped.")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="persona", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -108,6 +150,10 @@ def build_parser() -> argparse.ArgumentParser:
     pr = sub.add_parser("run", help="run the daemon only")
     pr.add_argument("--character", default="lin")
     pr.set_defaults(func=_cmd_run)
+
+    pw = sub.add_parser("wechat", help="daemon + WeChatPadPro connector")
+    pw.add_argument("--character", default=None, help="overrides config.toml [wechatpadpro].character")
+    pw.set_defaults(func=_cmd_wechat)
     return p
 
 

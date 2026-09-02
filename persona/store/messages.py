@@ -123,13 +123,15 @@ class MessageQueue:
         )
         return r is not None
 
-    def due_outbound(self, limit: int = 1) -> list[dict[str, Any]]:
-        rows = self.db.query_all(
-            "SELECT * FROM messages WHERE direction='out' AND status='pending' AND expect_ts <= ? "
-            "ORDER BY expect_ts ASC LIMIT ?",
-            (now(), limit),
-        )
-        return [_row(r) for r in rows]  # type: ignore[misc]
+    def due_outbound(self, limit: int = 1, *, from_id: str | None = None) -> list[dict[str, Any]]:
+        sql = "SELECT * FROM messages WHERE direction='out' AND status='pending' AND expect_ts <= ?"
+        params: list[Any] = [now()]
+        if from_id:
+            sql += " AND from_id = ?"
+            params.append(from_id)
+        sql += " ORDER BY expect_ts ASC LIMIT ?"
+        params.append(limit)
+        return [_row(r) for r in self.db.query_all(sql, tuple(params))]  # type: ignore[misc]
 
     # ---- mutate -------------------------------------------------------
     def set_status(self, mid: str, status: str, *, handled: bool = False) -> None:

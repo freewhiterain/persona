@@ -21,6 +21,9 @@ from persona.store.messages import MessageQueue
 class Connector(abc.ABC):
     name = "base"
 
+    #: if set, run_outbound only delivers messages sent *by* this id
+    outbound_from_id: str | None = None
+
     def __init__(self, *, queue: MessageQueue | None = None) -> None:
         self.queue = queue or MessageQueue()
 
@@ -36,7 +39,7 @@ class Connector(abc.ABC):
         import asyncio
 
         while True:
-            for msg in self.queue.due_outbound(limit=10):
+            for msg in self.queue.due_outbound(limit=10, from_id=self.outbound_from_id):
                 try:
                     await self.deliver(msg)
                     self.queue.set_status(msg["id"], "handled", handled=True)
