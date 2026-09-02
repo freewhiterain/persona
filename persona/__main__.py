@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import logging
+import os
 import sys
 
 from persona.config import get_settings
@@ -62,6 +64,10 @@ async def _chat(character_alias: str, user_name: str) -> None:
 
 
 def _cmd_chat(args: argparse.Namespace) -> int:
+    # keep the REPL readable; override with PERSONA_LOG_LEVEL
+    if "PERSONA_LOG_LEVEL" not in os.environ:
+        logging.getLogger("persona").setLevel(logging.WARNING)
+        logging.getLogger("httpx").setLevel(logging.WARNING)
     try:
         asyncio.run(_chat(args.character, args.user))
     except (KeyboardInterrupt, EOFError):
