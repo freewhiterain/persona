@@ -21,7 +21,7 @@ Modelled on `luoyun_project`, rewritten from scratch on a lighter stack.
 | vectors | `float32` BLOB + numpy brute-force cosine | Mongo + Python cosine |
 | LLM | any **OpenAI-compatible** endpoint | Doubao / Volc SDK |
 | embeddings | OpenAI-compatible `/embeddings`, or offline hash | Aliyun DashScope |
-| transport | terminal CLI (connector interface open) | E-cloud WeChat hook |
+| transport | terminal CLI; WeChat via protocol server ([docs](docs/wechatpadpro.md)) or PC-UI automation ([docs](docs/pywechat.md)) | E-cloud WeChat hook |
 | dropped for now | voice/image, daily scripts, news, moments | — |
 
 ## Quick start

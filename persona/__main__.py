@@ -133,6 +133,43 @@ def _cmd_wechat(args: argparse.Namespace) -> int:
     return 0
 
 
+async def _wechat_ui(character_alias: str) -> None:
+    from persona.chat.cards import seed_character
+    from persona.connectors.pywechat import PyWeChatConnector
+    from persona.runner.daemon import run_daemon
+    from persona.store.db import get_db
+    from persona.store.users import UserStore
+
+    s = get_settings()
+    if not s.cfg.pywechat.enabled:
+        print("config.toml [pywechat].enabled = false — nothing to do. See docs/pywechat.md.")
+        return
+
+    get_db().init_schema()
+    seed_character(character_alias)
+    character = UserStore().get_by_name(character_alias)
+    conn = PyWeChatConnector(character_id=character["id"])
+    tasks = [
+        asyncio.create_task(run_daemon(character["id"])),
+        asyncio.create_task(conn.run_inbound()),
+        asyncio.create_task(conn.run_outbound()),
+    ]
+    try:
+        await asyncio.gather(*tasks)
+    finally:
+        for t in tasks:
+            t.cancel()
+
+
+def _cmd_wechat_ui(args: argparse.Namespace) -> int:
+    character = args.character or get_settings().cfg.pywechat.character
+    try:
+        asyncio.run(_wechat_ui(character))
+    except KeyboardInterrupt:
+        print("\nstopped.")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="persona", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -151,9 +188,13 @@ def build_parser() -> argparse.ArgumentParser:
     pr.add_argument("--character", default="lin")
     pr.set_defaults(func=_cmd_run)
 
-    pw = sub.add_parser("wechat", help="daemon + WeChatPadPro connector")
+    pw = sub.add_parser("wechat", help="daemon + WeChatPadPro connector (protocol server)")
     pw.add_argument("--character", default=None, help="overrides config.toml [wechatpadpro].character")
     pw.set_defaults(func=_cmd_wechat)
+
+    pu = sub.add_parser("wechat-ui", help="daemon + PC WeChat UI-automation connector (pyweixin)")
+    pu.add_argument("--character", default=None, help="overrides config.toml [pywechat].character")
+    pu.set_defaults(func=_cmd_wechat_ui)
     return p
 
 

@@ -62,3 +62,15 @@ send_image_path = "/message/SendImageMessage"
 send_voice_path = "/message/SendVoice"
 reconnect_seconds = 3.0
 dedup_window = 512
+
+# PC WeChat UI-automation connector (pyweixin).  `persona wechat-ui` uses this.
+# Free, no protocol server; needs an always-on Windows session with WeChat
+# 4.1.6+ logged in and its UI reachable.  See docs/pywechat.md.
+[pywechat]
+enabled = false
+character = "lin"
+self_name = ""            # this account's own nickname (drops your own messages)
+poll_seconds = 6.0        # how often to scan the session list for unread
+send_delay = 0.5          # per-message pace inside pyweixin (>= 0.3)
+search_pages = 0          # 0 = open chats via WeChat's search box
+whitelist = []            # [] = reply to anyone; or ["张三", "李四"] to restrict

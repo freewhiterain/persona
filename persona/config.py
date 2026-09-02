@@ -105,6 +105,25 @@ class WeChatPadProConfig(BaseModel):
     dedup_window: int = 512          # remember this many recent msg ids
 
 
+class PyWeChatConfig(BaseModel):
+    """UI-automation connector (github.com/Hello-Mr-Crab/pywechat, ``pyweixin``).
+
+    Drives the real Windows PC WeChat 4.1.6+ window via the accessibility
+    tree — no hook, no protocol server.  Needs an always-on Windows session
+    with WeChat logged in and its UI reachable (see docs/pywechat.md).
+    Contacts are addressed by their **display name / 备注**, not a wxid.
+    """
+
+    enabled: bool = False
+    character: str = "lin"           # which character card this WeChat account plays
+    self_name: str = ""             # this account's own nickname (to drop own messages)
+    poll_seconds: float = 6.0        # how often to scan the session list for unread
+    send_delay: float = 0.5         # per-message delay inside pyweixin (>=0.3)
+    search_pages: int = 0           # 0 = use WeChat's search box to open a chat
+    whitelist: list[str] = Field(default_factory=list)  # [] = talk to anyone who messages
+    dedup_window: int = 512
+
+
 class TomlConfig(BaseModel):
     db_path: str = "persona.db"
     prompt_preset: str = "roleplay"
@@ -116,6 +135,7 @@ class TomlConfig(BaseModel):
     runner: RunnerConfig = Field(default_factory=RunnerConfig)
     relations: RelationsConfig = Field(default_factory=RelationsConfig)
     wechatpadpro: WeChatPadProConfig = Field(default_factory=WeChatPadProConfig)
+    pywechat: PyWeChatConfig = Field(default_factory=PyWeChatConfig)
 
 
 # --------------------------------------------------------------------------- #

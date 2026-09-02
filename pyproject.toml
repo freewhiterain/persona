@@ -19,6 +19,13 @@ dev = [
 wechat = [
     "aiohttp>=3.9",
 ]
+wechat-ui = [
+    "pywinauto>=0.6",
+    # pyweixin is not reliably on PyPI — install it yourself:
+    #   pip install pyweixin        (if it works for you)
+    # or clone github.com/Hello-Mr-Crab/pywechat and put its
+    #   Mcp/pyweixin_rpa  on PYTHONPATH.  See docs/pywechat.md.
+]
 
 [project.scripts]
 persona = "persona.__main__:main"
