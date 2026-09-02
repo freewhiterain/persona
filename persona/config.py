@@ -71,25 +71,33 @@ class RelationsConfig(BaseModel):
 
 
 class WeChatPadProConfig(BaseModel):
-    """Self-hosted WeChatPadPro (Docker) protocol server.  See
-    docs/wechatpadpro.md — the 4 fields you must confirm from its Swagger."""
+    """Self-hosted WeChatPadPro protocol server (needs MySQL + Redis; Docker
+    Compose is the easy path, a binary release also exists).
+
+    Defaults target github.com/WeChatPadPro/WeChatPadPro, which delivers
+    inbound via **HTTP webhook** (HMAC-SHA256 signed).  ``push_mode = "ws"``
+    is kept for other pad-protocol distros that stream over WebSocket.
+    Confirm the send-endpoint paths from your build's Swagger — see
+    docs/wechatpadpro.md.
+    """
 
     enabled: bool = False
     character: str = "lin"            # which character card this WeChat account plays
-    base_url: str = "http://localhost:8080"
-    token: str = ""                  # or set WECHATPADPRO_TOKEN in .env
+    base_url: str = "http://localhost:1238"
+    token: str = ""                  # per-account auth key; or set WECHATPADPRO_TOKEN in .env
     self_wxid: str = ""             # logged-in account's wxid (to drop own messages)
 
-    push_mode: str = "ws"           # "ws" (long-poll sync) | "webhook" (HTTP callback)
-    ws_path: str = "/ws/GetSyncMsg"  # TODO confirm
+    push_mode: str = "webhook"      # "webhook" (WeChatPadPro) | "ws" (other distros)
     webhook_host: str = "0.0.0.0"
     webhook_port: int = 9101
     webhook_path: str = "/wechat/callback"
+    webhook_secret: str = ""        # HMAC-SHA256 secret from webhook_config.json ("" = skip check)
+    ws_path: str = "/ws/GetSyncMsg"  # only for push_mode = "ws"
 
-    # send endpoints (TODO confirm names against your build's Swagger)
-    send_text_path: str = "/message/SendTextMessage"
-    send_image_path: str = "/message/SendImageMessage"
-    send_voice_path: str = "/message/SendVoiceMessage"
+    # send endpoints (TODO confirm against your build's Swagger)
+    send_text_path: str = "/api/v1/message/sendText"
+    send_image_path: str = "/api/v1/message/sendImage"
+    send_voice_path: str = "/api/v1/message/sendVoice"
 
     reconnect_seconds: float = 3.0
     dedup_window: int = 512          # remember this many recent msg ids

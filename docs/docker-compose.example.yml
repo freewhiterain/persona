@@ -1,27 +1,18 @@
-# Example: WeChatPadPro alongside `persona wechat`.
+# Optional: run `persona wechat` next to WeChatPadPro.
 #
-# Replace <wechatpadpro-image> with the image from the WeChatPadPro distro you
-# chose, and align ports / env with ITS docs. This file is illustrative.
+# WeChatPadPro ships its OWN compose under its repo's deploy/ (MySQL + Redis +
+# wechat_service). Bring that up first per its docs. This file only adds the
+# persona side and assumes WeChatPadPro is reachable at wechatpadpro:1238.
 
 services:
-  wechatpadpro:
-    image: <wechatpadpro-image>          # TODO: e.g. ghcr.io/.../wechatpadpro:latest
-    container_name: wechatpadpro
-    restart: unless-stopped
-    ports:
-      - "8080:8080"                      # HTTP API (+ ws) — match config base_url
-    volumes:
-      - ./wpp-data:/app/data             # persist login session — TODO: correct path
-    # environment:
-    #   - SOME_ADMIN_KEY=...             # per that build's docs
-
   persona:
     build: ..
     container_name: persona
     restart: unless-stopped
-    depends_on: [wechatpadpro]
     working_dir: /app
     command: ["uv", "run", "persona", "wechat"]
+    ports:
+      - "9101:9101"                     # webhook target for WeChatPadPro
     environment:
       - OPENAI_BASE_URL=http://host.docker.internal:11434/v1   # local Ollama
       - OPENAI_API_KEY=ollama
@@ -34,5 +25,9 @@ services:
       - "host.docker.internal:host-gateway"
     # config.toml [wechatpadpro]:
     #   enabled = true
-    #   base_url = "http://wechatpadpro:8080"
+    #   base_url = "http://wechatpadpro:1238"   # or host IP if WeChatPadPro runs elsewhere
     #   self_wxid = "wxid_...."
+    #   webhook_secret = "...."                 # from WeChatPadPro's webhook_config.json
+    #
+    # In WeChatPadPro's webhook_config.json set the callback URL to:
+    #   http://persona:9101/wechat/callback     (or http://<this-host-ip>:9101/...)

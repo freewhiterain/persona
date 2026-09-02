@@ -1,62 +1,72 @@
 # WeChatPadPro connector
 
-Self-hosted WeChat iPad-protocol server in Docker → `persona` via
+Self-hosted WeChat iPad-protocol server → `persona` via
 `persona/connectors/wechatpadpro/`. The runner / pipeline / queue are
 untouched; this is pure transport.
 
 > Personal-account automation violates WeChat's ToS and carries a real ban
-> risk. Use a secondary account. Self-hosting means you also maintain the
-> container and its login session.
+> risk. Use a secondary account.
 
-## Pieces
+## About WeChatPadPro itself
 
-```
-persona/connectors/wechatpadpro/
-  client.py      HTTP send client (aiohttp, lazy import)
-  adapter.py     push envelope -> standard InMsg (+ self/group/reference handling)
-  connector.py   WeChatPadProConnector: run_inbound (ws | webhook) + deliver
-```
+Repo: <https://github.com/WeChatPadPro/WeChatPadPro> (this family of projects
+gets DMCA'd and moves — verify the repo is live and read *its* current docs).
 
-`persona/connectors/base.py::Connector.run_outbound()` already polls
-`due_outbound(from_id=character_id)` and calls `deliver()` — you only
-implement `deliver()`.
+- **Needs MySQL 5.7+ and Redis**, either way you run it.
+- **Docker Compose** (`deploy/`, edit `.env`, `docker-compose up -d`) bundles
+  MySQL + Redis + the service — the least-effort path.
+- **Binary** release also exists: extract, edit `setting.json` (DB strings),
+  run the MySQL init, run `wechat_service`. No Docker, but you install and run
+  MySQL + Redis yourself.
+- Default HTTP port `1238`; admin endpoints around `8848`.
+- Login: `POST /api/login/qr/newx` → scan QR. **First login drops once within
+  24h**, then re-scan for ~3 months of uptime.
+- Per-account auth key: `GET /api/login/GenAuthKey2?key=<ADMIN_KEY>&count=1&days=365`
+  → that's your `WECHATPADPRO_TOKEN`.
+- Inbound = **HTTP webhook**: edit `webhook_config.json` (URL, event types,
+  secret); events POST'd with an **HMAC-SHA256** signature. Point its URL at
+  `http://<persona-host>:9101/wechat/callback`.
+
+Other distros (`wechat-ipad-protocol`, etc.) differ — some stream over
+WebSocket; set `push_mode = "ws"` and `ws_path` for those.
 
 ## Wire-up
 
 1. `uv sync --extra wechat`
-2. Run WeChatPadPro (see `docker-compose.example.yml`), scan the QR to log in,
-   note the **token** and the account's **wxid**.
-3. `.env`: `WECHATPADPRO_TOKEN=...`
-4. `config.toml` `[wechatpadpro]`: `enabled = true`, `base_url`, `self_wxid`,
-   `character`, `push_mode`.
-5. `uv run persona init` (once), then `uv run persona wechat`.
+2. Bring up WeChatPadPro (+ MySQL + Redis). Scan QR. `GenAuthKey2` → token.
+3. In `webhook_config.json`: URL `http://<persona-host>:9101/wechat/callback`,
+   note the `secret`.
+4. `.env`: `WECHATPADPRO_TOKEN=<token>`
+5. `config.toml` `[wechatpadpro]`: `enabled = true`, `base_url`, `self_wxid`
+   (your account's wxid), `character`, `webhook_secret`.
+6. `uv run persona init` once, then `uv run persona wechat`.
 
-## The 4 things to confirm from your build's Swagger
+## Confirm from the running server's Swagger
 
-The skeleton guesses these; every one is marked `TODO confirm` in code.
+The webhook side (default) is wired; verify the **send** side and the
+**push envelope**. Every guess is marked `TODO confirm` in code.
 
-| # | what | where to fix | current guess |
+| # | what | where | current guess |
 | - | --- | --- | --- |
-| 1 | **push mechanism**: WebSocket sync-stream vs HTTP callback | `config [wechatpadpro].push_mode` + `ws_path` / `webhook_path` | `ws` at `/ws/GetSyncMsg` |
-| 2 | **auth placement**: `?key=<token>` query vs `Authorization` header | `client.py::_post` (and `connector.py` ws `params`) | query `?key=` |
-| 3 | **send payload shape** for text | `client.py::send_text` | `{"ToUserName", "TextContent", "AtWxIDList"}` |
-| 4 | **push envelope**: message-list key, field names, `{"string": ...}` wrapping, group-sender prefix | `adapter.py` (`_MSG_LIST_KEYS`, `_get`, `_unwrap`, `to_std`) | `AddMsgs[]`, `FromUserName`/`Content`/`MsgType` |
+| 1 | **send text** endpoint + payload | `client.py::send_text`, `config send_text_path` | `POST /api/v1/message/sendText`, `{ToUserName, TextContent, AtWxIDList}` |
+| 2 | **auth placement**: `?key=` query vs `Authorization` header | `client.py::_post` | `?key=<token>` |
+| 3 | **push envelope**: message-list key, field names, `{"string": …}` wrapping, group-sender prefix | `adapter.py` (`_MSG_LIST_KEYS`, `_get`, `_unwrap`, `to_std`) | `AddMsgs[]`, `FromUserName` / `Content` / `MsgType` |
+| 4 | **webhook signature**: header name, hex vs base64 | `connector.py::_inbound_webhook` | header `X-Signature`, hex digest |
 
-`adapter.to_std` already normalises the common variants and flattens quoted
-replies; it returns `None` for non-text kinds (image/voice) — those need
-download + STT/vision, deferred.
+`adapter.to_std` normalises the common variants and flattens quoted replies;
+returns `None` for non-text kinds.
 
 ## Identity mapping
 
 - inbound user → `UserStore.get_or_create_external("wechat", wxid, nickname)`
-  → row `name = "wechat:<wxid>"`, `meta.external_id = "<wxid>"`
-- outbound → `deliver()` reads `meta.external_id` back to address the send
+  → row `name = "wechat:<wxid>"`, `meta.external_id = wxid`
+- outbound → `deliver()` reads `meta.external_id` to address the send
 - character → the `is_character` row for `[wechatpadpro].character`; its id is
   `outbound_from_id`, so this connector only sends that character's messages
 
 ## Not done (skeleton)
 
-- image / voice in & out (need media download + STT / TTS / vision)
+- image / voice in & out (media download + STT / TTS / vision)
 - group chat (adapter detects and skips it)
 - restart-safe dedup (msg-id dedup is in-memory only)
-- login/health monitoring, re-login on session drop
+- login/session health monitoring, auto re-login

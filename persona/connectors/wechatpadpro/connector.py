@@ -103,12 +103,24 @@ class WeChatPadProConnector(Connector):
                 await asyncio.sleep(self.cfg.reconnect_seconds)
 
     async def _inbound_webhook(self) -> None:
+        import hashlib
+        import hmac
+
         from aiohttp import web
 
         async def handle(request: "web.Request") -> "web.Response":
+            body = await request.read()
+            if self.cfg.webhook_secret:
+                # TODO confirm: header name + whether it's hex or base64
+                sig = request.headers.get("X-Signature", request.headers.get("x-wx-signature", ""))
+                want = hmac.new(self.cfg.webhook_secret.encode(), body, hashlib.sha256).hexdigest()
+                if not hmac.compare_digest(sig, want):
+                    return web.Response(status=401, text="bad signature")
             try:
-                payload = await request.json()
-            except Exception:  # noqa: BLE001
+                import json
+
+                payload = json.loads(body)
+            except ValueError:
                 return web.Response(status=400, text="bad json")
             for raw in iter_push_messages(payload):
                 await self._ingest(raw)
