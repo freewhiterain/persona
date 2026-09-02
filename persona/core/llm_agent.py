@@ -69,11 +69,18 @@ class LLMAgent(BaseAgent):
         self._user = ""
 
     # ------------------------------------------------------------------ #
+    # rendering seams (override in subclasses that assemble prompts differently)
+    def _make_system(self) -> str:
+        return render(self.system_template, self.context)
+
+    def _make_user(self) -> str:
+        return render(self.user_template, self.context)
+
     def _prehandle(self) -> None:
         if self.default_input:
             deep_default(self.default_input, self.context)
-        self._system = render(self.system_template, self.context)
-        self._user = render(self.user_template, self.context)
+        self._system = self._make_system()
+        self._user = self._make_user()
         if self.output_schema:
             self._user += "\n\n" + _schema_instruction(self.output_schema)
 
