@@ -26,11 +26,11 @@ logger = get_logger(__name__)
 _PLATFORM = "wechat"
 
 _INSTALL_HINT = (
-    "pyweixin not importable. Install it (Windows only):\n"
-    "  pip install pyweixin pywinauto\n"
-    "or clone github.com/Hello-Mr-Crab/pywechat and add its\n"
-    "  Mcp/pyweixin_rpa  folder to PYTHONPATH.\n"
-    "See docs/pywechat.md."
+    "pyweixin not importable (Windows only). See docs/pywechat.md:\n"
+    "  1. uv sync --extra wechat-ui        # its runtime deps\n"
+    "  2. vendor the package: copy the 'pyweixin' folder from\n"
+    "     github.com/Hello-Mr-Crab/pywechat (Mcp/pyweixin_rpa/pyweixin)\n"
+    "     into ./vendor/ and add ./vendor to the venv path (a .pth file)."
 )
 
 

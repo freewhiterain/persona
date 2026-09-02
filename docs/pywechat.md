@@ -28,17 +28,38 @@ persona/connectors/pywechat/connector.py
 1. **A Windows box that stays on**, with PC WeChat **4.1.6+** installed and
    the secondary account logged in.
 2. **Make the UI reachable (one-time):** WeChat 4.1+ hides its UI tree from
-   automation by default. Turn on Windows **讲述人 / Narrator** (`Win+Ctrl+Enter`)
-   *before* logging into WeChat, wait **5+ minutes**, then you may turn
-   Narrator off. After a few sessions WeChat "remembers" and you can skip this.
+   automation by default — pyweixin sees the window `class_name` as
+   `Qt51514QWindowIcon` and can't do anything. To unlock it:
+   1. **Log out** of WeChat
+   2. Turn on Windows **讲述人 / Narrator** (`Win+Ctrl+Enter`)
+   3. **Log back in** to WeChat
+   4. Leave Narrator running **5+ minutes**
+   5. (optional) turn Narrator off
+   6. verify — the window `class_name` should now be `mmui::MainWindow`:
+      ```
+      uv run python -c "import win32gui,pythoncom; pythoncom.CoInitialize(); \
+        from pywinauto import Desktop; \
+        h=win32gui.FindWindow('Qt51514QWindowIcon','微信') or win32gui.FindWindow('Qt51514QWindowIcon','Weixin'); \
+        print(Desktop(backend='uia').window(handle=h).class_name())"
+      ```
+   After a few sessions WeChat "remembers" and you can skip this.
    (Why: the Windows UI Automation API must expose all elements to screen
-   readers.)
-3. Install the connector deps:
+   readers, so enabling a screen reader forces WeChat to un-hide its tree.)
+3. Install the connector deps and vendor `pyweixin` (its PyPI build is
+   unusable):
    ```
    uv sync --extra wechat-ui
+   # get the source
+   git clone https://github.com/Hello-Mr-Crab/pywechat.git
+   mkdir vendor
+   cp -r pywechat/Mcp/pyweixin_rpa/pyweixin vendor/pyweixin
+   # point the venv at ./vendor
+   python -c "import sysconfig,pathlib; \
+     p=pathlib.Path(sysconfig.get_paths()['purelib'])/'_persona_vendor.pth'; \
+     p.write_text(str(pathlib.Path('vendor').resolve()))"
+   uv run python -c "from pyweixin import Messages; print('ok')"
    ```
-   If `pyweixin` from PyPI doesn't work, clone the repo above and add its
-   `Mcp/pyweixin_rpa` folder to `PYTHONPATH`.
+   `vendor/` is gitignored — redo this on a fresh clone of persona.
 4. `config.toml` `[pywechat]`:
    ```toml
    enabled   = true

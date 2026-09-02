@@ -20,11 +20,19 @@ wechat = [
     "aiohttp>=3.9",
 ]
 wechat-ui = [
+    # pyweixin's runtime deps (pyweixin itself is vendored — see docs/pywechat.md,
+    # its PyPI build is unusable). Windows only.
     "pywinauto>=0.6",
-    # pyweixin is not reliably on PyPI — install it yourself:
-    #   pip install pyweixin        (if it works for you)
-    # or clone github.com/Hello-Mr-Crab/pywechat and put its
-    #   Mcp/pyweixin_rpa  on PYTHONPATH.  See docs/pywechat.md.
+    "pyautogui>=0.9.54",
+    "psutil>=5.9.5",
+    "pycaw>=20240210",
+    "comtypes>=1.2",
+    "pywin32>=308",
+    "pywin32-ctypes>=0.2.2",
+    "packaging>=23.2",
+    "emoji>=2.14.1",
+    "soundfile>=0.12",
+    "sounddevice>=0.5",
 ]
 
 [project.scripts]
