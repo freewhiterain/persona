@@ -1,0 +1,43 @@
+# Copy to config.toml (optional).  Anything omitted uses the built-in defaults.
+#
+# The values below are wired for a fully-local Ollama setup
+# (ollama serve on http://localhost:11434).  See .env.example for the endpoint.
+
+# Path to the SQLite database file.
+db_path = "persona.db"
+
+# System-prompt preset: "roleplay" (clean, bounded) or "novel" (original framing).
+prompt_preset = "roleplay"
+
+# Embedder backend:
+#   "openai" -> OpenAI-compatible /embeddings (works with Ollama)
+#   "hash"   -> offline, deterministic, no model needed
+embedder = "openai"
+embedding_model = "qwen3-embedding:4b"
+embedding_dim = 256           # only used by the "hash" embedder
+
+# Structured-output strategy for LLM agents:
+#   "json" -> response_format=json_object + tolerant parsing (portable, local-model friendly)
+#   "tool" -> OpenAI function-calling (only for providers that support it well)
+structured_mode = "json"
+
+# Model-role -> concrete model name.  Character cards may override per role.
+[models]
+main = "Stheno:latest"
+fast = "Stheno:latest"
+refine = "deepseek-r1:8b"
+
+# Runner loop behaviour.
+[runner]
+tick_seconds = 1.0
+typing_speed = 2.5            # chars/second, for staggering multi-segment replies
+max_history = 50             # chat_history rounds kept per conversation
+max_handle_age = 43200       # ignore inbound messages older than this many seconds
+
+# Affinity / emotion / proactive behaviour.
+[relations]
+decay_every_seconds = 30240  # how often closeness/trustness tick down by 1
+proactive_every_seconds = 5338
+proactive_base_chance = 0.03
+dislike_analyze_bonus = -5   # dislike drift applied on every post-analyze pass
+blacklist_dislike = 100
