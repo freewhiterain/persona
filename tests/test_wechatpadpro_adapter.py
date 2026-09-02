@@ -46,6 +46,24 @@ def test_iter_push_messages_shapes():
     assert list(iter_push_messages({"nope": 1})) == []
 
 
+def test_wechatpadpro_native_webhook_shape():
+    """WeChatPadPro delivers a flat camelCase object, one per POST."""
+    body = {
+        "msgType": 1,
+        "fromUser": "wxid_bob",
+        "toUser": "wxid_bot",
+        "content": "晚上好",
+        "msgId": "77",
+        "nickName": "Bob",
+    }
+    got = list(iter_push_messages(body))
+    assert got == [body]
+    m = to_std(got[0], self_wxid="wxid_bot")
+    assert m is not None
+    assert (m.from_wxid, m.body, m.nickname, m.msg_id) == ("wxid_bob", "晚上好", "Bob", "77")
+    assert not m.is_self and not m.is_group
+
+
 def test_get_or_create_external_roundtrip(db):
     from persona.store.users import UserStore
 

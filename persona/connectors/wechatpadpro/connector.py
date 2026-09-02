@@ -111,20 +111,25 @@ class WeChatPadProConnector(Connector):
         async def handle(request: "web.Request") -> "web.Response":
             body = await request.read()
             if self.cfg.webhook_secret:
-                # TODO confirm: header name + whether it's hex or base64
-                sig = request.headers.get("X-Signature", request.headers.get("x-wx-signature", ""))
-                want = hmac.new(self.cfg.webhook_secret.encode(), body, hashlib.sha256).hexdigest()
-                if not hmac.compare_digest(sig, want):
-                    return web.Response(status=401, text="bad signature")
+                # WeChatPadPro reference client: HMAC_SHA256(secret, timestamp + body) hex,
+                # headers X-Webhook-Timestamp / X-Webhook-Signature
+                ts = request.headers.get("X-Webhook-Timestamp", "")
+                sig = request.headers.get("X-Webhook-Signature", "")
+                mac = hmac.new(self.cfg.webhook_secret.encode(), digestmod=hashlib.sha256)
+                mac.update(str(ts).encode())
+                mac.update(body)
+                if not (sig and hmac.compare_digest(mac.hexdigest(), sig)):
+                    logger.warning("wechatpadpro webhook: bad signature")
+                    return web.json_response({"success": False, "message": "bad signature"}, status=401)
             try:
                 import json
 
                 payload = json.loads(body)
             except ValueError:
-                return web.Response(status=400, text="bad json")
+                return web.json_response({"success": False, "message": "bad json"}, status=400)
             for raw in iter_push_messages(payload):
                 await self._ingest(raw)
-            return web.json_response({"ok": True})
+            return web.json_response({"success": True})
 
         app = web.Application()
         app.router.add_post(self.cfg.webhook_path, handle)

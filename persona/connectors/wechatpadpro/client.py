@@ -49,8 +49,9 @@ class WeChatPadClient:
 
     # -- send ------------------------------------------------------------
     async def send_text(self, to_wxid: str, content: str) -> dict[str, Any]:
-        # TODO confirm payload shape
-        payload = {"ToUserName": to_wxid, "TextContent": content, "AtWxIDList": []}
+        # Guess modelled on the confirmed sendFile payload ({"toUserName": ...}).
+        # TODO confirm field names against your server's Swagger.
+        payload = {"toUserName": to_wxid, "content": content, "atWxIDList": []}
         return await self._post(self.cfg.send_text_path, payload)
 
     async def send_image(self, to_wxid: str, image_ref: str) -> dict[str, Any]:

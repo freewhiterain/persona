@@ -90,11 +90,12 @@ class WeChatPadProConfig(BaseModel):
     push_mode: str = "webhook"      # "webhook" (WeChatPadPro) | "ws" (other distros)
     webhook_host: str = "0.0.0.0"
     webhook_port: int = 9101
-    webhook_path: str = "/wechat/callback"
-    webhook_secret: str = ""        # HMAC-SHA256 secret from webhook_config.json ("" = skip check)
+    webhook_path: str = "/webhook"   # WeChatPadPro webhook_config.json -> url path
+    webhook_secret: str = ""        # webhook_config.json "secret_key" ("" = skip signature check)
     ws_path: str = "/ws/GetSyncMsg"  # only for push_mode = "ws"
 
-    # send endpoints (TODO confirm against your build's Swagger)
+    # send endpoints — sendFile is confirmed from the README; sendText path +
+    # payload still TODO confirm from the running server's Swagger (/swagger or /doc)
     send_text_path: str = "/api/v1/message/sendText"
     send_image_path: str = "/api/v1/message/sendImage"
     send_voice_path: str = "/api/v1/message/sendVoice"

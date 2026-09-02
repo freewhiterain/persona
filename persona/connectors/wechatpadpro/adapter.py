@@ -21,10 +21,13 @@ _TYPE_MAP = {
     43: "video",
     47: "sticker",
     49: "reference",  # app msg / quoted reply / link / file
+    10000: "system",
 }
 
 _MSG_LIST_KEYS = ("AddMsgs", "add_msgs", "AddMsgList", "MsgList", "messages", "data", "Data")
-_MSGID_KEYS = ("MsgId", "msg_id", "NewMsgId", "newMsgId", "msgid")
+_MSGID_KEYS = ("msgId", "MsgId", "msg_id", "msgid", "newMsgId", "NewMsgId", "newMsgID")
+# fields that mark a bare dict as a single message (WeChatPadPro webhook body)
+_SINGLE_MARKERS = (*_MSGID_KEYS, "msgType", "MsgType", "msg_type", "content", "Content")
 
 
 def _unwrap(v: Any) -> str:
@@ -69,11 +72,11 @@ def iter_push_messages(payload: Any) -> Iterator[dict[str, Any]]:
         if isinstance(v, list):
             yield from (m for m in v if isinstance(m, dict))
             return
-        if isinstance(v, dict) and any(k in v for k in _MSGID_KEYS):
+        if isinstance(v, dict) and any(k in v for k in _SINGLE_MARKERS):
             yield v
             return
-    if any(k in payload for k in _MSGID_KEYS):
-        yield payload
+    if any(k in payload for k in _SINGLE_MARKERS):
+        yield payload  # WeChatPadPro webhook: one flat message object per POST
 
 
 _REFER_TITLE = re.compile(r"<title>(.*?)</title>", re.S)
@@ -92,18 +95,24 @@ def _flatten_reference(content: str) -> str:
 
 
 def to_std(raw: dict[str, Any], *, self_wxid: str) -> InMsg | None:
-    """Normalise one raw message.  Returns None for kinds this skeleton skips."""
+    """Normalise one raw message.  Returns None for kinds this skeleton skips.
+
+    Primary target: WeChatPadPro webhook body (flat, camelCase:
+    ``{"msgType": 1, "fromUser": "...", "toUser": "...", "content": "..."}``).
+    Also tolerates the PascalCase / ``{"string": ...}``-wrapped shapes other
+    pad-protocol distros use.
+    """
     try:
-        msg_type = int(_get(raw, "MsgType", "msg_type", "type", default=0) or 0)
+        msg_type = int(_get(raw, "msgType", "MsgType", "msg_type", "type", default=0) or 0)
     except (TypeError, ValueError):
         msg_type = 0
     kind = _TYPE_MAP.get(msg_type, "other")
 
-    from_wxid = _unwrap(_get(raw, "FromUserName", "from_wxid", "fromUser", "from"))
-    to_wxid = _unwrap(_get(raw, "ToUserName", "to_wxid", "toUser", "to"))
-    content = _unwrap(_get(raw, "Content", "content", "PushContent", "msg"))
+    from_wxid = _unwrap(_get(raw, "fromUser", "FromUserName", "from_wxid", "from"))
+    to_wxid = _unwrap(_get(raw, "toUser", "ToUserName", "to_wxid", "to"))
+    content = _unwrap(_get(raw, "content", "Content", "PushContent", "msg"))
     msg_id = str(_get(raw, *_MSGID_KEYS, default=""))
-    nickname = _unwrap(_get(raw, "NickName", "nickname", "sender_nickname", default="")) or None
+    nickname = _unwrap(_get(raw, "nickName", "NickName", "nickname", "senderNickName", default="")) or None
 
     is_group = from_wxid.endswith("@chatroom") or to_wxid.endswith("@chatroom")
 
