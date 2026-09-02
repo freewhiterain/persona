@@ -1,7 +1,8 @@
-# env / secrets
+# env / secrets / local config
 .env
 *.env
 !/.env.example
+config.toml
 
 # python
 __pycache__/

@@ -28,22 +28,63 @@ def strip_think(text: str) -> str:
 
 
 def extract_json(text: str) -> Any:
-    """Best-effort parse of a JSON object/array out of a model reply."""
+    """Best-effort parse of a JSON object/array out of a model reply.
+
+    Handles code fences, leading prose, and (common with small local models)
+    a reply that was cut off before its closing brackets.
+    """
     raw = strip_think(text).strip()
     raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
         pass
-    # brace / bracket extraction fallback
+
     for open_c, close_c in (("{", "}"), ("[", "]")):
-        i, j = raw.find(open_c), raw.rfind(close_c)
+        i = raw.find(open_c)
+        if i < 0:
+            continue
+        j = raw.rfind(close_c)
         if 0 <= i < j:
             try:
                 return json.loads(raw[i : j + 1])
             except json.JSONDecodeError:
-                continue
+                pass
+        # truncated: try to close it
+        repaired = _close_json(raw[i:])
+        if repaired is not None:
+            return repaired
     raise ValueError(f"could not parse JSON from model reply: {text[:200]!r}")
+
+
+def _close_json(fragment: str) -> Any:
+    """Append the missing closing brackets/quote to a truncated JSON fragment."""
+    stack: list[str] = []
+    in_str = False
+    esc = False
+    for ch in fragment:
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch in "{[":
+            stack.append("}" if ch == "{" else "]")
+        elif ch in "}]" and stack:
+            stack.pop()
+    candidate = fragment.rstrip().rstrip(",")
+    if in_str:
+        candidate += '"'
+    candidate += "".join(reversed(stack))
+    try:
+        return json.loads(candidate)
+    except json.JSONDecodeError:
+        return None
 
 
 class LLMClient:
