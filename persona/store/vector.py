@@ -22,6 +22,8 @@ def from_blob(blob: bytes | None) -> np.ndarray | None:
 
 
 def cosine(a: np.ndarray, b: np.ndarray) -> float:
+    if a.shape != b.shape:
+        return 0.0  # different embedder / model — not comparable
     na = float(np.linalg.norm(a))
     nb = float(np.linalg.norm(b))
     if na == 0.0 or nb == 0.0:
@@ -30,7 +32,15 @@ def cosine(a: np.ndarray, b: np.ndarray) -> float:
 
 
 def rank(query: np.ndarray, rows: list[tuple[str, np.ndarray]], top_k: int) -> list[tuple[str, float]]:
-    """rows: (id, embedding) -> [(id, similarity)] sorted desc, length <= top_k."""
-    scored = [(rid, cosine(query, emb)) for rid, emb in rows if emb is not None]
+    """rows: (id, embedding) -> [(id, similarity)] sorted desc, length <= top_k.
+
+    Rows whose embedding dimension differs from ``query`` (a DB seeded with a
+    different embedder) are scored 0 and effectively dropped.
+    """
+    scored = [
+        (rid, cosine(query, emb))
+        for rid, emb in rows
+        if emb is not None and emb.shape == query.shape
+    ]
     scored.sort(key=lambda t: t[1], reverse=True)
     return scored[:top_k]

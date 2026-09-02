@@ -27,6 +27,26 @@ def test_recall_ranks_relevant_row_first(db):
     assert out.splitlines()[0].startswith("职业：")
 
 
+def test_recall_survives_embedder_dim_mismatch(db):
+    """A row embedded by a different embedder (wrong dim) must not crash recall."""
+    import numpy as np
+
+    from persona.store.vector import to_blob
+
+    store = MemoryStore()
+    mid = store.upsert(character_id="c", mtype="character_global", key="职业", value="文学编辑")
+    # clobber the stored vectors with a wrong-dimension embedding
+    bad = to_blob(np.ones(2560, dtype="float32"))
+    store.db.execute("UPDATE memories SET key_emb=?, value_emb=? WHERE id=?", (bad, bad, mid))
+
+    out = recall_store(
+        store, character_id="c", user_id="u", mtype="character_global",
+        question="工作", keywords="编辑",
+    )
+    # keyword route still matches; no exception
+    assert "文学编辑" in out
+
+
 def test_recall_returns_empty_for_blank_query(db):
     out = recall_store(
         MemoryStore(), character_id="c", user_id="u", mtype="character_global",
