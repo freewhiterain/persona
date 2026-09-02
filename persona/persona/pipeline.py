@@ -31,15 +31,17 @@ class ChatPipeline(BaseAgent):
     respond_cls = RespondAgent
     #: post-analyze needs both sides of the exchange; proactive has no inbound
     run_post_analyze = True
+    #: a real inbound turn clears proactive damping; a proactive run must not
+    resets_proactive_damping = True
 
     def _execute(self) -> Iterator[Any]:
         ctx = self.context
 
-        # a fresh inbound turn resets the "how many times have I pinged them" damping
         fut = ctx["conversation"]["info"].setdefault(
             "future", {"timestamp": None, "action": None, "proactive_times": 0}
         )
-        fut["proactive_times"] = 0
+        if self.resets_proactive_damping:
+            fut["proactive_times"] = 0
 
         # 1. query rewrite --------------------------------------------------
         q = QueryRewriteAgent(ctx).run_to_resp()
@@ -85,6 +87,7 @@ class ChatPipeline(BaseAgent):
 class ProactivePipeline(ChatPipeline):
     respond_cls = ProactiveRespondAgent
     run_post_analyze = False
+    resets_proactive_damping = False
 
 
 def _segments_to_str(segments: list[dict[str, str]]) -> str:
