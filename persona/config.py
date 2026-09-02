@@ -31,6 +31,7 @@ class EnvSettings(BaseSettings):
     embedding_base_url: str | None = None
     persona_fake_llm: bool = False
     persona_log_level: str = "INFO"
+    persona_db_path: str | None = None   # overrides config.toml db_path (tests / one-offs)
 
     @property
     def emb_key(self) -> str:
@@ -95,7 +96,7 @@ class Settings(BaseModel):
 
     @property
     def db_path(self) -> Path:
-        p = Path(self.cfg.db_path)
+        p = Path(self.env.persona_db_path or self.cfg.db_path)
         return p if p.is_absolute() else self.project_root / p
 
     @property
